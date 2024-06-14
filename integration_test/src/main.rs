@@ -1,4 +1,4 @@
-//! # rust-bitcoincore-rpc integration test
+//! # rust-kaon-rpc integration test
 //!
 //! The test methods are named to mention the methods tested.
 //! Individual test methods don't use any methods not tested before or
@@ -16,22 +16,22 @@ extern crate lazy_static;
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use bitcoin::absolute::LockTime;
-use bitcoin::address::{NetworkChecked, NetworkUnchecked};
-use bitcoincore_rpc::json;
-use bitcoincore_rpc::jsonrpc::error::Error as JsonRpcError;
-use bitcoincore_rpc::{Auth, Client, Error, RpcApi};
+use kaon::absolute::LockTime;
+use kaon::address::{NetworkChecked, NetworkUnchecked};
+use kaon_rpc::json;
+use kaon_rpc::jsonrpc::error::Error as JsonRpcError;
+use kaon_rpc::{Auth, Client, Error, RpcApi};
 
 use crate::json::BlockStatsFields as BsFields;
-use bitcoin::consensus::encode::{deserialize, serialize_hex};
-use bitcoin::hashes::hex::FromHex;
-use bitcoin::hashes::Hash;
-use bitcoin::{secp256k1, ScriptBuf, sighash};
-use bitcoin::{
+use kaon::consensus::encode::{deserialize, serialize_hex};
+use kaon::hashes::hex::FromHex;
+use kaon::hashes::Hash;
+use kaon::{secp256k1, ScriptBuf, sighash};
+use kaon::{
     transaction, Address, Amount, CompressedPublicKey, Network, OutPoint, PrivateKey, Sequence,
     SignedAmount, Transaction, TxIn, TxOut, Txid, Witness,
 };
-use bitcoincore_rpc::bitcoincore_rpc_json::{
+use kaon_rpc::kaon_rpc_json::{
     GetBlockTemplateModes, GetBlockTemplateRules, GetZmqNotificationsResult, ScanTxOutRequest,
 };
 
@@ -41,14 +41,14 @@ lazy_static! {
     /// A random address not owned by the node.
     static ref RANDOM_ADDRESS: Address<NetworkChecked> = Address::from_str("mgR9fN5UzZ64mSUUtk6NwxxS6kwVfoEtPG").unwrap().assume_checked();
     /// The default fee amount to use when needed.
-    static ref FEE: Amount = Amount::from_btc(0.001).unwrap();
+    static ref FEE: Amount = Amount::from_kaon(0.001).unwrap();
 }
 
 struct StdLogger;
 
 impl log::Log for StdLogger {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.target().contains("jsonrpc") || metadata.target().contains("bitcoincore_rpc")
+        metadata.target().contains("jsonrpc") || metadata.target().contains("kaon_rpc")
     }
 
     fn log(&self, record: &log::Record) {
@@ -99,13 +99,13 @@ fn version() -> usize {
     unsafe { VERSION }
 }
 
-/// Quickly create a BTC amount.
-fn btc<F: Into<f64>>(btc: F) -> Amount {
-    Amount::from_btc(btc.into()).unwrap()
+/// Quickly create a KAON amount.
+fn kaon<F: Into<f64>>(kaon: F) -> Amount {
+    Amount::from_kaon(kaon.into()).unwrap()
 }
-/// Quickly create a signed BTC amount.
-fn sbtc<F: Into<f64>>(btc: F) -> SignedAmount {
-    SignedAmount::from_btc(btc.into()).unwrap()
+/// Quickly create a signed KAON amount.
+fn skaon<F: Into<f64>>(kaon: F) -> SignedAmount {
+    SignedAmount::from_kaon(kaon.into()).unwrap()
 }
 
 fn get_testdir() -> String {
@@ -116,7 +116,7 @@ fn get_rpc_url() -> String {
     return std::env::var("RPC_URL").expect("RPC_URL must be set");
 }
 
-fn get_auth() -> bitcoincore_rpc::Auth {
+fn get_auth() -> kaon_rpc::Auth {
     if let Ok(cookie) = std::env::var("RPC_COOKIE") {
         return Auth::CookieFile(cookie.into());
     } else if let Ok(user) = std::env::var("RPC_USER") {
@@ -245,24 +245,24 @@ fn test_get_blockchain_info(cl: &Client) {
 
 fn test_get_new_address(cl: &Client) {
     let addr = cl.get_new_address(None, Some(json::AddressType::Legacy)).unwrap().assume_checked();
-    assert_eq!(addr.address_type(), Some(bitcoin::AddressType::P2pkh));
+    assert_eq!(addr.address_type(), Some(kaon::AddressType::P2pkh));
 
     let addr = cl.get_new_address(None, Some(json::AddressType::Bech32)).unwrap().assume_checked();
-    assert_eq!(addr.address_type(), Some(bitcoin::AddressType::P2wpkh));
+    assert_eq!(addr.address_type(), Some(kaon::AddressType::P2wpkh));
 
     let addr = cl.get_new_address(None, Some(json::AddressType::P2shSegwit)).unwrap().assume_checked();
-    assert_eq!(addr.address_type(), Some(bitcoin::AddressType::P2sh));
+    assert_eq!(addr.address_type(), Some(kaon::AddressType::P2sh));
 }
 
 fn test_get_raw_change_address(cl: &Client) {
     let addr = cl.get_raw_change_address(Some(json::AddressType::Legacy)).unwrap().assume_checked();
-    assert_eq!(addr.address_type(), Some(bitcoin::AddressType::P2pkh));
+    assert_eq!(addr.address_type(), Some(kaon::AddressType::P2pkh));
 
     let addr = cl.get_raw_change_address(Some(json::AddressType::Bech32)).unwrap().assume_checked();
-    assert_eq!(addr.address_type(), Some(bitcoin::AddressType::P2wpkh));
+    assert_eq!(addr.address_type(), Some(kaon::AddressType::P2wpkh));
 
     let addr = cl.get_raw_change_address(Some(json::AddressType::P2shSegwit)).unwrap().assume_checked();
-    assert_eq!(addr.address_type(), Some(bitcoin::AddressType::P2sh));
+    assert_eq!(addr.address_type(), Some(kaon::AddressType::P2sh));
 }
 
 fn test_dump_private_key(cl: &Client) {
@@ -283,7 +283,7 @@ fn test_generate(cl: &Client) {
     } else if version() < 210000 {
         assert_not_found!(cl.generate(5, None));
     } else {
-        // Bitcoin Core v0.21 appears to return this with a generic -1 error code,
+        // Bitcoin/Kaon Core v0.21 appears to return this with a generic -1 error code,
         // rather than the expected -32601 code (RPC_METHOD_NOT_FOUND).
         assert_error_message!(cl.generate(5, None), -1, "replaced by the -generate cli option");
     }
@@ -420,44 +420,44 @@ fn test_set_label(cl: &Client) {
 fn test_send_to_address(cl: &Client) {
     let addr = cl.get_new_address(None, None).unwrap().assume_checked();
     let est = json::EstimateMode::Conservative;
-    let _ = cl.send_to_address(&addr, btc(1), Some("cc"), None, None, None, None, None).unwrap();
-    let _ = cl.send_to_address(&addr, btc(1), None, Some("tt"), None, None, None, None).unwrap();
-    let _ = cl.send_to_address(&addr, btc(1), None, None, Some(true), None, None, None).unwrap();
-    let _ = cl.send_to_address(&addr, btc(1), None, None, None, Some(true), None, None).unwrap();
-    let _ = cl.send_to_address(&addr, btc(1), None, None, None, None, Some(3), None).unwrap();
-    let _ = cl.send_to_address(&addr, btc(1), None, None, None, None, None, Some(est)).unwrap();
+    let _ = cl.send_to_address(&addr, kaon(1), Some("cc"), None, None, None, None, None).unwrap();
+    let _ = cl.send_to_address(&addr, kaon(1), None, Some("tt"), None, None, None, None).unwrap();
+    let _ = cl.send_to_address(&addr, kaon(1), None, None, Some(true), None, None, None).unwrap();
+    let _ = cl.send_to_address(&addr, kaon(1), None, None, None, Some(true), None, None).unwrap();
+    let _ = cl.send_to_address(&addr, kaon(1), None, None, None, None, Some(3), None).unwrap();
+    let _ = cl.send_to_address(&addr, kaon(1), None, None, None, None, None, Some(est)).unwrap();
 }
 
 fn test_get_received_by_address(cl: &Client) {
     let addr = cl.get_new_address(None, None).unwrap().assume_checked();
-    let _ = cl.send_to_address(&addr, btc(1), None, None, None, None, None, None).unwrap();
-    assert_eq!(cl.get_received_by_address(&addr, Some(0)).unwrap(), btc(1));
-    assert_eq!(cl.get_received_by_address(&addr, Some(1)).unwrap(), btc(0));
+    let _ = cl.send_to_address(&addr, kaon(1), None, None, None, None, None, None).unwrap();
+    assert_eq!(cl.get_received_by_address(&addr, Some(0)).unwrap(), kaon(1));
+    assert_eq!(cl.get_received_by_address(&addr, Some(1)).unwrap(), kaon(0));
     let _ = cl.generate_to_address(7, &cl.get_new_address(None, None).unwrap().assume_checked()).unwrap();
-    assert_eq!(cl.get_received_by_address(&addr, Some(6)).unwrap(), btc(1));
-    assert_eq!(cl.get_received_by_address(&addr, None).unwrap(), btc(1));
+    assert_eq!(cl.get_received_by_address(&addr, Some(6)).unwrap(), kaon(1));
+    assert_eq!(cl.get_received_by_address(&addr, None).unwrap(), kaon(1));
 }
 
 fn test_list_unspent(cl: &Client) {
     let addr = cl.get_new_address(None, None).unwrap();
     let addr_checked = addr.clone().assume_checked();
-    let txid = cl.send_to_address(&addr.clone().assume_checked(), btc(1), None, None, None, None, None, None).unwrap();
+    let txid = cl.send_to_address(&addr.clone().assume_checked(), kaon(1), None, None, None, None, None, None).unwrap();
     let unspent = cl.list_unspent(Some(0), None, Some(&[ &addr_checked]), None, None).unwrap();
     assert_eq!(unspent[0].txid, txid);
     assert_eq!(unspent[0].address.as_ref(), Some(&addr));
-    assert_eq!(unspent[0].amount, btc(1));
+    assert_eq!(unspent[0].amount, kaon(1));
 
-    let txid = cl.send_to_address(&addr_checked, btc(7), None, None, None, None, None, None).unwrap();
+    let txid = cl.send_to_address(&addr_checked, kaon(7), None, None, None, None, None, None).unwrap();
     let options = json::ListUnspentQueryOptions {
-        minimum_amount: Some(btc(7)),
-        maximum_amount: Some(btc(7)),
+        minimum_amount: Some(kaon(7)),
+        maximum_amount: Some(kaon(7)),
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(0), None, Some(&[&addr_checked]), None, Some(options)).unwrap();
     assert_eq!(unspent.len(), 1);
     assert_eq!(unspent[0].txid, txid);
     assert_eq!(unspent[0].address.as_ref(), Some(&addr));
-    assert_eq!(unspent[0].amount, btc(7));
+    assert_eq!(unspent[0].amount, kaon(7));
 }
 
 fn test_get_difficulty(cl: &Client) {
@@ -470,7 +470,7 @@ fn test_get_connection_count(cl: &Client) {
 
 fn test_get_raw_transaction(cl: &Client) {
     let addr = cl.get_new_address(None, None).unwrap().assume_checked();
-    let txid = cl.send_to_address(&addr, btc(1), None, None, None, None, None, None).unwrap();
+    let txid = cl.send_to_address(&addr, kaon(1), None, None, None, None, None, None).unwrap();
     let tx = cl.get_raw_transaction(&txid, None).unwrap();
     let hex = cl.get_raw_transaction_hex(&txid, None).unwrap();
     assert_eq!(tx, deserialize(&Vec::<u8>::from_hex(&hex).unwrap()).unwrap());
@@ -488,7 +488,7 @@ fn test_get_raw_mempool(cl: &Client) {
 }
 
 fn test_get_raw_mempool_verbose(cl: &Client) {
-    cl.send_to_address(&RANDOM_ADDRESS, btc(1), None, None, None, None, None, None).unwrap();
+    cl.send_to_address(&RANDOM_ADDRESS, kaon(1), None, None, None, None, None, None).unwrap();
     let _ = cl.get_raw_mempool_verbose().unwrap();
 
     // cleanup mempool transaction
@@ -497,9 +497,9 @@ fn test_get_raw_mempool_verbose(cl: &Client) {
 
 fn test_get_transaction(cl: &Client) {
     let txid =
-        cl.send_to_address(&RANDOM_ADDRESS, btc(1), None, None, None, None, None, None).unwrap();
+        cl.send_to_address(&RANDOM_ADDRESS, kaon(1), None, None, None, None, None, None).unwrap();
     let tx = cl.get_transaction(&txid, None).unwrap();
-    assert_eq!(tx.amount, sbtc(-1.0));
+    assert_eq!(tx.amount, skaon(-1.0));
     assert_eq!(tx.info.txid, txid);
 
     let fake = Txid::hash(&[1, 2]);
@@ -522,7 +522,7 @@ fn test_list_since_block(cl: &Client) {
 
 fn test_get_tx_out(cl: &Client) {
     let txid =
-        cl.send_to_address(&RANDOM_ADDRESS, btc(1), None, None, None, None, None, None).unwrap();
+        cl.send_to_address(&RANDOM_ADDRESS, kaon(1), None, None, None, None, None, None).unwrap();
     let out = cl.get_tx_out(&txid, 0, Some(false)).unwrap();
     assert!(out.is_none());
     let out = cl.get_tx_out(&txid, 0, Some(true)).unwrap();
@@ -532,9 +532,9 @@ fn test_get_tx_out(cl: &Client) {
 
 fn test_get_tx_out_proof(cl: &Client) {
     let txid1 =
-        cl.send_to_address(&RANDOM_ADDRESS, btc(1), None, None, None, None, None, None).unwrap();
+        cl.send_to_address(&RANDOM_ADDRESS, kaon(1), None, None, None, None, None, None).unwrap();
     let txid2 =
-        cl.send_to_address(&RANDOM_ADDRESS, btc(1), None, None, None, None, None, None).unwrap();
+        cl.send_to_address(&RANDOM_ADDRESS, kaon(1), None, None, None, None, None, None).unwrap();
     let blocks = cl.generate_to_address(7, &cl.get_new_address(None, None).unwrap().assume_checked()).unwrap();
     let proof = cl.get_tx_out_proof(&[txid1, txid2], Some(&blocks[0])).unwrap();
     assert!(!proof.is_empty());
@@ -542,7 +542,7 @@ fn test_get_tx_out_proof(cl: &Client) {
 
 fn test_get_mempool_entry(cl: &Client) {
     let txid =
-        cl.send_to_address(&RANDOM_ADDRESS, btc(1), None, None, None, None, None, None).unwrap();
+        cl.send_to_address(&RANDOM_ADDRESS, kaon(1), None, None, None, None, None, None).unwrap();
     let entry = cl.get_mempool_entry(&txid).unwrap();
     assert!(entry.spent_by.is_empty());
 
@@ -552,7 +552,7 @@ fn test_get_mempool_entry(cl: &Client) {
 
 fn test_lock_unspent_unlock_unspent(cl: &Client) {
     let addr = cl.get_new_address(None, None).unwrap().assume_checked();
-    let txid = cl.send_to_address(&addr, btc(1), None, None, None, None, None, None).unwrap();
+    let txid = cl.send_to_address(&addr, kaon(1), None, None, None, None, None, None).unwrap();
 
     assert!(cl.lock_unspent(&[OutPoint::new(txid, 0)]).unwrap());
     assert!(cl.unlock_unspent(&[OutPoint::new(txid, 0)]).unwrap());
@@ -580,7 +580,7 @@ fn test_sign_raw_transaction_with_send_raw_transaction(cl: &Client) {
     let addr = Address::p2wpkh(&pk, Network::Regtest);
 
     let options = json::ListUnspentQueryOptions {
-        minimum_amount: Some(btc(2)),
+        minimum_amount: Some(kaon(2)),
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
@@ -602,6 +602,9 @@ fn test_sign_raw_transaction_with_send_raw_transaction(cl: &Client) {
             value: (unspent.amount - *FEE),
             script_pubkey: addr.script_pubkey(),
         }],
+        validator_register: vec![],
+        validator_vote: vec![],
+        gas_price: Amount::ZERO,
     };
 
     let input = json::SignRawTransactionInput {
@@ -631,6 +634,9 @@ fn test_sign_raw_transaction_with_send_raw_transaction(cl: &Client) {
             value: (unspent.amount - *FEE - *FEE),
             script_pubkey: RANDOM_ADDRESS.script_pubkey(),
         }],
+        validator_register: vec![],
+        validator_vote: vec![],
+        gas_price: Amount::ZERO,
     };
 
     let res = cl
@@ -653,7 +659,7 @@ fn test_key_pool_refill(cl: &Client) {
 
 fn test_create_raw_transaction(cl: &Client) {
     let options = json::ListUnspentQueryOptions {
-        minimum_amount: Some(btc(2)),
+        minimum_amount: Some(kaon(2)),
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
@@ -665,7 +671,7 @@ fn test_create_raw_transaction(cl: &Client) {
         sequence: None,
     };
     let mut output = HashMap::new();
-    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    output.insert(RANDOM_ADDRESS.to_string(), kaon(1));
 
     let tx =
         cl.create_raw_transaction(&[input.clone()], &output, Some(500_000), Some(true)).unwrap();
@@ -676,7 +682,7 @@ fn test_create_raw_transaction(cl: &Client) {
 
 fn test_decode_raw_transaction(cl: &Client) {
     let options = json::ListUnspentQueryOptions {
-        minimum_amount: Some(btc(2)),
+        minimum_amount: Some(kaon(2)),
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
@@ -688,7 +694,7 @@ fn test_decode_raw_transaction(cl: &Client) {
         sequence: None,
     };
     let mut output = HashMap::new();
-    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    output.insert(RANDOM_ADDRESS.to_string(), kaon(1));
 
     let tx =
         cl.create_raw_transaction(&[input.clone()], &output, Some(500_000), Some(true)).unwrap();
@@ -700,13 +706,13 @@ fn test_decode_raw_transaction(cl: &Client) {
     assert_eq!(500_000, decoded_transaction.locktime);
 
     assert_eq!(decoded_transaction.vin[0].txid.unwrap(), unspent.txid);
-    assert_eq!(decoded_transaction.vout[0].clone().value, btc(1));
+    assert_eq!(decoded_transaction.vout[0].clone().value, kaon(1));
 }
 
 fn test_fund_raw_transaction(cl: &Client) {
     let addr = cl.get_new_address(None, None).unwrap().assume_checked();
     let mut output = HashMap::new();
-    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    output.insert(RANDOM_ADDRESS.to_string(), kaon(1));
 
     let options = json::FundRawTransactionOptions {
         add_inputs: None,
@@ -745,7 +751,7 @@ fn test_fund_raw_transaction(cl: &Client) {
 
 fn test_test_mempool_accept(cl: &Client) {
     let options = json::ListUnspentQueryOptions {
-        minimum_amount: Some(btc(2)),
+        minimum_amount: Some(kaon(2)),
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
@@ -773,7 +779,7 @@ fn test_test_mempool_accept(cl: &Client) {
 fn test_wallet_create_funded_psbt(cl: &Client) {
     let addr = cl.get_new_address(None, None).unwrap();
     let options = json::ListUnspentQueryOptions {
-        minimum_amount: Some(btc(2)),
+        minimum_amount: Some(kaon(2)),
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
@@ -785,7 +791,7 @@ fn test_wallet_create_funded_psbt(cl: &Client) {
         sequence: None,
     };
     let mut output = HashMap::new();
-    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    output.insert(RANDOM_ADDRESS.to_string(), kaon(1));
 
     let options = json::WalletCreateFundedPsbtOptions {
         add_inputs: None,
@@ -831,7 +837,7 @@ fn test_wallet_create_funded_psbt(cl: &Client) {
 
 fn test_wallet_process_psbt(cl: &Client) {
     let options = json::ListUnspentQueryOptions {
-        minimum_amount: Some(btc(2)),
+        minimum_amount: Some(kaon(2)),
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
@@ -842,7 +848,7 @@ fn test_wallet_process_psbt(cl: &Client) {
         sequence: None,
     };
     let mut output = HashMap::new();
-    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    output.insert(RANDOM_ADDRESS.to_string(), kaon(1));
     let psbt = cl
         .wallet_create_funded_psbt(&[input.clone()], &output, Some(500_000), None, Some(true))
         .unwrap();
@@ -853,7 +859,7 @@ fn test_wallet_process_psbt(cl: &Client) {
 
 fn test_join_psbt(cl: &Client) {
     let options = json::ListUnspentQueryOptions {
-        minimum_amount: Some(btc(2)),
+        minimum_amount: Some(kaon(2)),
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
@@ -864,7 +870,7 @@ fn test_join_psbt(cl: &Client) {
         sequence: None,
     };
     let mut output = HashMap::new();
-    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    output.insert(RANDOM_ADDRESS.to_string(), kaon(1));
     let psbt1 = cl
         .wallet_create_funded_psbt(&[input.clone()], &output, Some(500_000), None, Some(true))
         .unwrap();
@@ -876,7 +882,7 @@ fn test_join_psbt(cl: &Client) {
         sequence: None,
     };
     let mut output2 = HashMap::new();
-    output2.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    output2.insert(RANDOM_ADDRESS.to_string(), kaon(1));
     let psbt2 = cl
         .wallet_create_funded_psbt(&[input2.clone()], &output, Some(500_000), None, Some(true))
         .unwrap();
@@ -887,7 +893,7 @@ fn test_join_psbt(cl: &Client) {
 
 fn test_combine_psbt(cl: &Client) {
     let options = json::ListUnspentQueryOptions {
-        minimum_amount: Some(btc(2)),
+        minimum_amount: Some(kaon(2)),
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
@@ -898,7 +904,7 @@ fn test_combine_psbt(cl: &Client) {
         sequence: None,
     };
     let mut output = HashMap::new();
-    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    output.insert(RANDOM_ADDRESS.to_string(), kaon(1));
     let psbt1 = cl
         .wallet_create_funded_psbt(&[input.clone()], &output, Some(500_000), None, Some(true))
         .unwrap();
@@ -909,7 +915,7 @@ fn test_combine_psbt(cl: &Client) {
 
 fn test_combine_raw_transaction(cl: &Client) {
     let options = json::ListUnspentQueryOptions {
-        minimum_amount: Some(btc(2)),
+        minimum_amount: Some(kaon(2)),
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
@@ -920,7 +926,7 @@ fn test_combine_raw_transaction(cl: &Client) {
         sequence: None,
     };
     let mut output = HashMap::new();
-    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    output.insert(RANDOM_ADDRESS.to_string(), kaon(1));
     let tx = cl.create_raw_transaction_hex(&[input.clone()], &output, Some(500_000), None).unwrap();
 
     let transaction = cl.combine_raw_transaction(&[tx.clone(), tx]).unwrap();
@@ -930,7 +936,7 @@ fn test_combine_raw_transaction(cl: &Client) {
 
 fn test_create_psbt(cl: &Client) {
     let options = json::ListUnspentQueryOptions {
-        minimum_amount: Some(btc(2)),
+        minimum_amount: Some(kaon(2)),
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
@@ -942,14 +948,14 @@ fn test_create_psbt(cl: &Client) {
         sequence: None,
     };
     let mut output = HashMap::new();
-    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    output.insert(RANDOM_ADDRESS.to_string(), kaon(1));
 
     let _ = cl.create_psbt(&[input], &output, Some(500_000), Some(true)).unwrap();
 }
 
 fn test_finalize_psbt(cl: &Client) {
     let options = json::ListUnspentQueryOptions {
-        minimum_amount: Some(btc(2)),
+        minimum_amount: Some(kaon(2)),
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
@@ -960,7 +966,7 @@ fn test_finalize_psbt(cl: &Client) {
         sequence: None,
     };
     let mut output = HashMap::new();
-    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    output.insert(RANDOM_ADDRESS.to_string(), kaon(1));
     let psbt = cl
         .wallet_create_funded_psbt(&[input.clone()], &output, Some(500_000), None, Some(true))
         .unwrap();
@@ -973,7 +979,7 @@ fn test_finalize_psbt(cl: &Client) {
 
 fn test_list_received_by_address(cl: &Client) {
     let addr = cl.get_new_address(None, None).unwrap().assume_checked();
-    let txid = cl.send_to_address(&addr, btc(1), None, None, None, None, None, None).unwrap();
+    let txid = cl.send_to_address(&addr, kaon(1), None, None, None, None, None, None).unwrap();
 
     let _ = cl.list_received_by_address(Some(&addr), None, None, None).unwrap();
     let _ = cl.list_received_by_address(Some(&addr), None, Some(true), None).unwrap();
@@ -1046,7 +1052,7 @@ fn test_estimate_smart_fee(cl: &Client) {
     }
 
     assert!(res.fee_rate.is_some(), "no fee estimate available: {:?}", res.errors);
-    assert!(res.fee_rate.unwrap() >= btc(0));
+    assert!(res.fee_rate.unwrap() >= kaon(0));
 }
 
 fn test_ping(cl: &Client) {
@@ -1271,7 +1277,7 @@ fn test_getblocktemplate(cl: &Client) {
     // contains an entry in the vector of GetBlockTemplateResultTransaction.
     // Otherwise the GetBlockTemplateResultTransaction deserialization wouldn't
     // be tested.
-    cl.send_to_address(&RANDOM_ADDRESS, btc(1), None, None, None, None, None, None).unwrap();
+    cl.send_to_address(&RANDOM_ADDRESS, kaon(1), None, None, None, None, None, None).unwrap();
 
     cl.get_block_template(GetBlockTemplateModes::Template, &[GetBlockTemplateRules::SegWit], &[])
         .unwrap();
@@ -1432,7 +1438,7 @@ fn test_get_index_info(cl: &Client) {
 fn test_get_zmq_notifications(cl: &Client) {
     let mut zmq_info = cl.get_zmq_notifications().unwrap();
 
-    // it doesn't matter in which order Bitcoin Core returns the result,
+    // it doesn't matter in which order Bitcoin/Kaon Core returns the result,
     // but checking it is easier if it has a known order
 
     // sort_by_key does not allow returning references to parameters of the compare function

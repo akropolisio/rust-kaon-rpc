@@ -15,17 +15,17 @@ use std::iter::FromIterator;
 use std::path::PathBuf;
 use std::{fmt, result};
 
-use crate::bitcoin;
-use crate::bitcoin::consensus::encode;
-use bitcoin::hex::DisplayHex;
+use crate::kaon;
+use crate::kaon::consensus::encode;
+use kaon::hex::DisplayHex;
 use jsonrpc;
 use serde;
 use serde_json;
 
-use crate::bitcoin::address::{NetworkUnchecked, NetworkChecked};
-use crate::bitcoin::hashes::hex::FromHex;
-use crate::bitcoin::secp256k1::ecdsa::Signature;
-use crate::bitcoin::{
+use crate::kaon::address::{NetworkUnchecked, NetworkChecked};
+use crate::kaon::hashes::hex::FromHex;
+use crate::kaon::secp256k1::ecdsa::Signature;
+use crate::kaon::{
     Address, Amount, Block, OutPoint, PrivateKey, PublicKey, Script, Transaction,
 };
 use log::Level::{Debug, Trace, Warn};
@@ -42,7 +42,7 @@ pub type Result<T> = result::Result<T, Error>;
 /// for use as RPC arguments
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct JsonOutPoint {
-    pub txid: bitcoin::Txid,
+    pub txid: kaon::Txid,
     pub vout: u32,
 }
 
@@ -332,28 +332,28 @@ pub trait RpcApi: Sized {
         self.call("getconnectioncount", &[])
     }
 
-    fn get_block(&self, hash: &bitcoin::BlockHash) -> Result<Block> {
+    fn get_block(&self, hash: &kaon::BlockHash) -> Result<Block> {
         let hex: String = self.call("getblock", &[into_json(hash)?, 0.into()])?;
         Ok(encode::deserialize_hex(&hex)?)
     }
 
-    fn get_block_hex(&self, hash: &bitcoin::BlockHash) -> Result<String> {
+    fn get_block_hex(&self, hash: &kaon::BlockHash) -> Result<String> {
         self.call("getblock", &[into_json(hash)?, 0.into()])
     }
 
-    fn get_block_info(&self, hash: &bitcoin::BlockHash) -> Result<json::GetBlockResult> {
+    fn get_block_info(&self, hash: &kaon::BlockHash) -> Result<json::GetBlockResult> {
         self.call("getblock", &[into_json(hash)?, 1.into()])
     }
     //TODO(stevenroose) add getblock_txs
 
-    fn get_block_header(&self, hash: &bitcoin::BlockHash) -> Result<bitcoin::block::Header> {
+    fn get_block_header(&self, hash: &kaon::BlockHash) -> Result<kaon::block::Header> {
         let hex: String = self.call("getblockheader", &[into_json(hash)?, false.into()])?;
         Ok(encode::deserialize_hex(&hex)?)
     }
 
     fn get_block_header_info(
         &self,
-        hash: &bitcoin::BlockHash,
+        hash: &kaon::BlockHash,
     ) -> Result<json::GetBlockHeaderResult> {
         self.call("getblockheader", &[into_json(hash)?, true.into()])
     }
@@ -464,12 +464,12 @@ pub trait RpcApi: Sized {
     }
 
     /// Returns the hash of the best (tip) block in the longest blockchain.
-    fn get_best_block_hash(&self) -> Result<bitcoin::BlockHash> {
+    fn get_best_block_hash(&self) -> Result<kaon::BlockHash> {
         self.call("getbestblockhash", &[])
     }
 
     /// Get block hash at a given height
-    fn get_block_hash(&self, height: u64) -> Result<bitcoin::BlockHash> {
+    fn get_block_hash(&self, height: u64) -> Result<kaon::BlockHash> {
         self.call("getblockhash", &[height.into()])
     }
 
@@ -487,18 +487,18 @@ pub trait RpcApi: Sized {
 
     fn get_raw_transaction(
         &self,
-        txid: &bitcoin::Txid,
-        block_hash: Option<&bitcoin::BlockHash>,
+        txid: &kaon::Txid,
+        block_hash: Option<&kaon::BlockHash>,
     ) -> Result<Transaction> {
         let mut args = [into_json(txid)?, into_json(false)?, opt_into_json(block_hash)?];
         let hex: String = self.call("getrawtransaction", handle_defaults(&mut args, &[null()]))?;
-        Ok(encode::deserialize_hex(&hex)?)
+        deserialize_hex(&hex)
     }
 
     fn get_raw_transaction_hex(
         &self,
-        txid: &bitcoin::Txid,
-        block_hash: Option<&bitcoin::BlockHash>,
+        txid: &kaon::Txid,
+        block_hash: Option<&kaon::BlockHash>,
     ) -> Result<String> {
         let mut args = [into_json(txid)?, into_json(false)?, opt_into_json(block_hash)?];
         self.call("getrawtransaction", handle_defaults(&mut args, &[null()]))
@@ -506,8 +506,8 @@ pub trait RpcApi: Sized {
 
     fn get_raw_transaction_info(
         &self,
-        txid: &bitcoin::Txid,
-        block_hash: Option<&bitcoin::BlockHash>,
+        txid: &kaon::Txid,
+        block_hash: Option<&kaon::BlockHash>,
     ) -> Result<json::GetRawTransactionResult> {
         let mut args = [into_json(txid)?, into_json(true)?, opt_into_json(block_hash)?];
         self.call("getrawtransaction", handle_defaults(&mut args, &[null()]))
@@ -515,7 +515,7 @@ pub trait RpcApi: Sized {
 
     fn get_block_filter(
         &self,
-        block_hash: &bitcoin::BlockHash,
+        block_hash: &kaon::BlockHash,
     ) -> Result<json::GetBlockFilterResult> {
         self.call("getblockfilter", &[into_json(block_hash)?])
     }
@@ -526,7 +526,7 @@ pub trait RpcApi: Sized {
         include_watchonly: Option<bool>,
     ) -> Result<Amount> {
         let mut args = ["*".into(), opt_into_json(minconf)?, opt_into_json(include_watchonly)?];
-        Ok(Amount::from_btc(
+        Ok(Amount::from_kaon(
             self.call("getbalance", handle_defaults(&mut args, &[0.into(), null()]))?,
         )?)
     }
@@ -537,14 +537,14 @@ pub trait RpcApi: Sized {
 
     fn get_received_by_address(&self, address: &Address, minconf: Option<u32>) -> Result<Amount> {
         let mut args = [address.to_string().into(), opt_into_json(minconf)?];
-        Ok(Amount::from_btc(
+        Ok(Amount::from_kaon(
             self.call("getreceivedbyaddress", handle_defaults(&mut args, &[null()]))?,
         )?)
     }
 
     fn get_transaction(
         &self,
-        txid: &bitcoin::Txid,
+        txid: &kaon::Txid,
         include_watchonly: Option<bool>,
     ) -> Result<json::GetTransactionResult> {
         let mut args = [into_json(txid)?, opt_into_json(include_watchonly)?];
@@ -569,7 +569,7 @@ pub trait RpcApi: Sized {
 
     fn list_since_block(
         &self,
-        blockhash: Option<&bitcoin::BlockHash>,
+        blockhash: Option<&kaon::BlockHash>,
         target_confirmations: Option<usize>,
         include_watchonly: Option<bool>,
         include_removed: Option<bool>,
@@ -585,7 +585,7 @@ pub trait RpcApi: Sized {
 
     fn get_tx_out(
         &self,
-        txid: &bitcoin::Txid,
+        txid: &kaon::Txid,
         vout: u32,
         include_mempool: Option<bool>,
     ) -> Result<Option<json::GetTxOutResult>> {
@@ -595,8 +595,8 @@ pub trait RpcApi: Sized {
 
     fn get_tx_out_proof(
         &self,
-        txids: &[bitcoin::Txid],
-        block_hash: Option<&bitcoin::BlockHash>,
+        txids: &[kaon::Txid],
+        block_hash: Option<&kaon::BlockHash>,
     ) -> Result<Vec<u8>> {
         let mut args = [into_json(txids)?, opt_into_json(block_hash)?];
         let hex: String = self.call("gettxoutproof", handle_defaults(&mut args, &[null()]))?;
@@ -748,7 +748,7 @@ pub trait RpcApi: Sized {
         replaceable: Option<bool>,
     ) -> Result<String> {
         let outs_converted = serde_json::Map::from_iter(
-            outputs.iter().map(|(k, v)| (k.clone(), serde_json::Value::from(v.to_btc()))),
+            outputs.iter().map(|(k, v)| (k.clone(), serde_json::Value::from(v.to_kaon()))),
         );
         self.call(
             "createpsbt",
@@ -769,7 +769,7 @@ pub trait RpcApi: Sized {
         replaceable: Option<bool>,
     ) -> Result<String> {
         let outs_converted = serde_json::Map::from_iter(
-            outs.iter().map(|(k, v)| (k.clone(), serde_json::Value::from(v.to_btc()))),
+            outs.iter().map(|(k, v)| (k.clone(), serde_json::Value::from(v.to_kaon()))),
         );
         let mut args = [
             into_json(utxos)?,
@@ -907,23 +907,23 @@ pub trait RpcApi: Sized {
         &self,
         block_num: u64,
         address: &Address<NetworkChecked>,
-    ) -> Result<Vec<bitcoin::BlockHash>> {
+    ) -> Result<Vec<kaon::BlockHash>> {
         self.call("generatetoaddress", &[block_num.into(), address.to_string().into()])
     }
 
     /// Mine up to block_num blocks immediately (before the RPC call returns)
     /// to an address in the wallet.
-    fn generate(&self, block_num: u64, maxtries: Option<u64>) -> Result<Vec<bitcoin::BlockHash>> {
+    fn generate(&self, block_num: u64, maxtries: Option<u64>) -> Result<Vec<kaon::BlockHash>> {
         self.call("generate", &[block_num.into(), opt_into_json(maxtries)?])
     }
 
     /// Mark a block as invalid by `block_hash`
-    fn invalidate_block(&self, block_hash: &bitcoin::BlockHash) -> Result<()> {
+    fn invalidate_block(&self, block_hash: &kaon::BlockHash) -> Result<()> {
         self.call("invalidateblock", &[into_json(block_hash)?])
     }
 
     /// Mark a block as valid by `block_hash`
-    fn reconsider_block(&self, block_hash: &bitcoin::BlockHash) -> Result<()> {
+    fn reconsider_block(&self, block_hash: &kaon::BlockHash) -> Result<()> {
         self.call("reconsiderblock", &[into_json(block_hash)?])
     }
 
@@ -933,19 +933,19 @@ pub trait RpcApi: Sized {
     }
 
     /// Get txids of all transactions in a memory pool
-    fn get_raw_mempool(&self) -> Result<Vec<bitcoin::Txid>> {
+    fn get_raw_mempool(&self) -> Result<Vec<kaon::Txid>> {
         self.call("getrawmempool", &[])
     }
 
     /// Get details for the transactions in a memory pool
     fn get_raw_mempool_verbose(
         &self,
-    ) -> Result<HashMap<bitcoin::Txid, json::GetMempoolEntryResult>> {
+    ) -> Result<HashMap<kaon::Txid, json::GetMempoolEntryResult>> {
         self.call("getrawmempool", &[into_json(true)?])
     }
 
     /// Get mempool data for given transaction
-    fn get_mempool_entry(&self, txid: &bitcoin::Txid) -> Result<json::GetMempoolEntryResult> {
+    fn get_mempool_entry(&self, txid: &kaon::Txid) -> Result<json::GetMempoolEntryResult> {
         self.call("getmempoolentry", &[into_json(txid)?])
     }
 
@@ -965,10 +965,10 @@ pub trait RpcApi: Sized {
         replaceable: Option<bool>,
         confirmation_target: Option<u32>,
         estimate_mode: Option<json::EstimateMode>,
-    ) -> Result<bitcoin::Txid> {
+    ) -> Result<kaon::Txid> {
         let mut args = [
             address.to_string().into(),
-            into_json(amount.to_btc())?,
+            into_json(amount.to_kaon())?,
             opt_into_json(comment)?,
             opt_into_json(comment_to)?,
             opt_into_json(subtract_fee)?,
@@ -1076,7 +1076,7 @@ pub trait RpcApi: Sized {
         self.call("ping", &[])
     }
 
-    fn send_raw_transaction<R: RawTx>(&self, tx: R) -> Result<bitcoin::Txid> {
+    fn send_raw_transaction<R: RawTx>(&self, tx: R) -> Result<kaon::Txid> {
         self.call("sendrawtransaction", &[tx.raw_hex().into()])
     }
 
@@ -1110,7 +1110,7 @@ pub trait RpcApi: Sized {
     /// indicates no timeout.
     fn wait_for_block(
         &self,
-        blockhash: &bitcoin::BlockHash,
+        blockhash: &kaon::BlockHash,
         timeout: u64,
     ) -> Result<json::BlockRef> {
         let args = [into_json(blockhash)?, into_json(timeout)?];
@@ -1126,7 +1126,7 @@ pub trait RpcApi: Sized {
         bip32derivs: Option<bool>,
     ) -> Result<json::WalletCreateFundedPsbtResult> {
         let outputs_converted = serde_json::Map::from_iter(
-            outputs.iter().map(|(k, v)| (k.clone(), serde_json::Value::from(v.to_btc()))),
+            outputs.iter().map(|(k, v)| (k.clone(), serde_json::Value::from(v.to_kaon()))),
         );
         let mut args = [
             into_json(inputs)?,
@@ -1156,7 +1156,7 @@ pub trait RpcApi: Sized {
         ];
         let defaults = [
             true.into(),
-            into_json(json::SigHashType::from(bitcoin::sighash::EcdsaSighashType::All))?,
+            into_json(json::SigHashType::from(kaon::sighash::EcdsaSighashType::All))?,
             true.into(),
         ];
         self.call("walletprocesspsbt", handle_defaults(&mut args, &defaults))
@@ -1236,8 +1236,8 @@ pub trait RpcApi: Sized {
     }
 
     /// Submit a block
-    fn submit_block(&self, block: &bitcoin::Block) -> Result<()> {
-        let block_hex: String = bitcoin::consensus::encode::serialize_hex(block);
+    fn submit_block(&self, block: &kaon::Block) -> Result<()> {
+        let block_hex: String = kaon::consensus::encode::serialize_hex(block);
         self.submit_block_hex(&block_hex)
     }
 
@@ -1269,19 +1269,19 @@ pub trait RpcApi: Sized {
     }
 }
 
-/// Client implements a JSON-RPC client for the Bitcoin Core daemon or compatible APIs.
+/// Client implements a JSON-RPC client for the Kaon Core daemon or compatible APIs.
 pub struct Client {
     client: jsonrpc::client::Client,
 }
 
 impl fmt::Debug for Client {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "bitcoincore_rpc::Client({:?})", self.client)
+        write!(f, "kaon_rpc::Client({:?})", self.client)
     }
 }
 
 impl Client {
-    /// Creates a client to a bitcoind JSON-RPC server.
+    /// Creates a client to a kaond JSON-RPC server.
     ///
     /// Can only return [Err] when using cookie authentication.
     pub fn new(url: &str, auth: Auth) -> Result<Self> {
@@ -1316,7 +1316,7 @@ impl RpcApi for Client {
         let raw = serde_json::value::to_raw_value(args)?;
         let req = self.client.build_request(&cmd, Some(&*raw));
         if log_enabled!(Debug) {
-            debug!(target: "bitcoincore_rpc", "JSON-RPC request: {} {}", cmd, serde_json::Value::from(args));
+            debug!(target: "kaon_rpc", "JSON-RPC request: {} {}", cmd, serde_json::Value::from(args));
         }
 
         let resp = self.client.send_request(req).map_err(Error::from);
@@ -1330,18 +1330,18 @@ fn log_response(cmd: &str, resp: &Result<jsonrpc::Response>) {
         match resp {
             Err(ref e) => {
                 if log_enabled!(Debug) {
-                    debug!(target: "bitcoincore_rpc", "JSON-RPC failed parsing reply of {}: {:?}", cmd, e);
+                    debug!(target: "kaon_rpc", "JSON-RPC failed parsing reply of {}: {:?}", cmd, e);
                 }
             }
             Ok(ref resp) => {
                 if let Some(ref e) = resp.error {
                     if log_enabled!(Debug) {
-                        debug!(target: "bitcoincore_rpc", "JSON-RPC error for {}: {:?}", cmd, e);
+                        debug!(target: "kaon_rpc", "JSON-RPC error for {}: {:?}", cmd, e);
                     }
                 } else if log_enabled!(Trace) {
                     let def = serde_json::value::to_raw_value(&serde_json::value::Value::Null).unwrap();
                     let result = resp.result.as_ref().unwrap_or(&def);
-                    trace!(target: "bitcoincore_rpc", "JSON-RPC response for {}: {}", cmd, result);
+                    trace!(target: "kaon_rpc", "JSON-RPC response for {}: {}", cmd, result);
                 }
             }
         }
@@ -1351,14 +1351,14 @@ fn log_response(cmd: &str, resp: &Result<jsonrpc::Response>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bitcoin;
+    use crate::kaon;
     use serde_json;
 
     #[test]
     fn test_raw_tx() {
-        use crate::bitcoin::consensus::encode;
+        use crate::kaon::consensus::encode;
         let client = Client::new("http://localhost/".into(), Auth::None).unwrap();
-        let tx: bitcoin::Transaction = encode::deserialize(&Vec::<u8>::from_hex("0200000001586bd02815cf5faabfec986a4e50d25dbee089bd2758621e61c5fab06c334af0000000006b483045022100e85425f6d7c589972ee061413bcf08dc8c8e589ce37b217535a42af924f0e4d602205c9ba9cb14ef15513c9d946fa1c4b797883e748e8c32171bdf6166583946e35c012103dae30a4d7870cd87b45dd53e6012f71318fdd059c1c2623b8cc73f8af287bb2dfeffffff021dc4260c010000001976a914f602e88b2b5901d8aab15ebe4a97cf92ec6e03b388ac00e1f505000000001976a914687ffeffe8cf4e4c038da46a9b1d37db385a472d88acfd211500").unwrap()).unwrap();
+        let tx: kaon::Transaction = encode::deserialize(&Vec::<u8>::from_hex("0200000001586bd02815cf5faabfec986a4e50d25dbee089bd2758621e61c5fab06c334af0000000006b483045022100e85425f6d7c589972ee061413bcf08dc8c8e589ce37b217535a42af924f0e4d602205c9ba9cb14ef15513c9d946fa1c4b797883e748e8c32171bdf6166583946e35c012103dae30a4d7870cd87b45dd53e6012f71318fdd059c1c2623b8cc73f8af287bb2dfeffffff021dc4260c010000001976a914f602e88b2b5901d8aab15ebe4a97cf92ec6e03b388ac00e1f505000000001976a914687ffeffe8cf4e4c038da46a9b1d37db385a472d88acfd211500").unwrap()).unwrap();
 
         assert!(client.send_raw_transaction(&tx).is_err());
         assert!(client.send_raw_transaction(&encode::serialize(&tx)).is_err());

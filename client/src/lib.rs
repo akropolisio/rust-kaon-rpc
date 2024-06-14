@@ -8,12 +8,12 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-//! # Rust Client for Bitcoin Core API
+//! # Rust Client for Kaon Core API
 //!
-//! This is a client library for the Bitcoin Core JSON-RPC API.
+//! This is a client library for the Kaon Core JSON-RPC API.
 //!
 
-#![crate_name = "bitcoincore_rpc"]
+#![crate_name = "kaon_rpc"]
 #![crate_type = "rlib"]
 
 #[macro_use]
@@ -24,9 +24,9 @@ extern crate serde;
 
 pub extern crate jsonrpc;
 
-pub extern crate bitcoincore_rpc_json;
-pub use crate::json::bitcoin;
-pub use bitcoincore_rpc_json as json;
+pub extern crate kaon_rpc_json;
+pub use crate::json::kaon;
+pub use kaon_rpc_json as json;
 
 mod client;
 mod error;
