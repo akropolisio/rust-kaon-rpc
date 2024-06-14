@@ -1,4 +1,4 @@
----   # rust-bitcoincore-rpc CI: If you edit this file please update README.md
+---   # rust-kaon-rpc CI: If you edit this file please update README.md
 on:   # yamllint disable-line rule:truthy
   push:
     branches:
@@ -22,7 +22,7 @@ jobs:
       - name: "Checkout maintainer tools"
         uses: actions/checkout@v4
         with:
-          repository: rust-bitcoin/rust-bitcoin-maintainer-tools
+          repository: akropolisio/rust-kaon-maintainer-tools
           rev: b2ac115
           path: maintainer-tools
       - name: "Select toolchain"
@@ -45,7 +45,7 @@ jobs:
       - name: "Checkout maintainer tools"
         uses: actions/checkout@v4
         with:
-          repository: rust-bitcoin/rust-bitcoin-maintainer-tools
+          repository: akropolisio/rust-kaon-maintainer-tools
           rev: b2ac115
           path: maintainer-tools
       - name: "Select toolchain"
@@ -68,7 +68,7 @@ jobs:
       - name: "Checkout maintainer tools"
         uses: actions/checkout@v4
         with:
-          repository: rust-bitcoin/rust-bitcoin-maintainer-tools
+          repository: akropolisio/rust-kaon-maintainer-tools
           rev: b2ac115
           path: maintainer-tools
       - name: "Select toolchain"
@@ -80,21 +80,17 @@ jobs:
       - name: "Run test script"
         run: ./maintainer-tools/ci/run_task.sh msrv
 
-  Integration:                  # 1 job for each Bitcoin Core version.
+  Integration:                  # 1 job for each Kaon Core version.
     name: Integration tests - stable toolchain
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        bitcoinversion:
+        kaonversion:
           [
-            "0.18.0",
-            "0.18.1",
-            "0.19.0.1",
-            "0.19.1",
-            "0.20.0",
-            "0.20.1",
-            "0.21.0",
+            "1.0.0",
+            "1.0.1",
+            "1.1.0",
           ]
     steps:
       - name: "Checkout repo"
@@ -103,5 +99,5 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: "Run integration tests"
         env:
-          BITCOINVERSION: ${{ matrix.bitcoinversion }}
+          KAONVERSION: ${{ matrix.kaonversion }}
         run: ./contrib/integration_test.sh
