@@ -1,9 +1,9 @@
-bitcoincore-rpc
+kaon-rpc
 ===============
 
-Rust client library for the Bitcoin Core daemon's JSON-RPC API.
+Rust client library for the Kaon Core daemon's JSON-RPC API.
 
-Separate `bitcoincore-rpc-json` crate with the JSON-enabled data types used 
+Separate `kaon-rpc-json` crate with the JSON-enabled data types used 
 in the interface of this crate.
 
 
