@@ -5,3 +5,12 @@ members = [
     "client",
     "integration_test",
 ]
+
+# TODO: this is temporal. Remove after the publishing.
+[patch.crates-io]
+base58check = { git = 'https://github.com/akropolisio/rust-kaon.git' }
+kaon = { git = 'https://github.com/akropolisio/rust-kaon.git' }
+kaon_hashes = { git = 'https://github.com/akropolisio/rust-kaon.git' }
+kaon-internals = { git = 'https://github.com/akropolisio/rust-kaon.git' }
+kaon-io = { git = 'https://github.com/akropolisio/rust-kaon.git' }
+kaon-units = { git = 'https://github.com/akropolisio/rust-kaon.git' }
