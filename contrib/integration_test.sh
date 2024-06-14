@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Run the integration test optionally downloading Bitcoin Core binary if BITCOINVERSION is set.
+# Run the integration test optionally downloading Kaon Core binary if KAONVERSION is set.
 
 set -euo pipefail
 
@@ -10,21 +10,22 @@ REPO_DIR=$(git rev-parse --show-toplevel)
 export CARGO_TERM_VERBOSE=true
 
 main() {
-    # If a specific version of Bitcoin Core is set then download the binary.
-    if [ -n "${BITCOINVERSION+x}" ]; then
+    # If a specific version of Kaon Core is set then download the binary.
+    if [ -n "${KAONVERSION+x}" ]; then
         download_binary
     fi
 
-    need_cmd bitcoind
+    need_cmd kaond
 
     cd integration_test
     ./run.sh
 }
 
 download_binary() {
-    wget https://bitcoincore.org/bin/bitcoin-core-$BITCOINVERSION/bitcoin-$BITCOINVERSION-x86_64-linux-gnu.tar.gz
-    tar -xzvf bitcoin-$BITCOINVERSION-x86_64-linux-gnu.tar.gz
-    export PATH=$PATH:$(pwd)/bitcoin-$BITCOINVERSION/bin
+    # TODO: place bin
+    wget https://kaon.one/bin/kaon-core-$KAONVERSION/kaon-$KAONVERSION-x86_64-linux-gnu.tar.gz
+    tar -xzvf kaon-$KAONVERSION-x86_64-linux-gnu.tar.gz
+    export PATH=$PATH:$(pwd)/kaon-$KAONVERSION/bin
 }
 
 err() {

@@ -1,16 +1,16 @@
 #!/bin/sh
 
-TESTDIR=/tmp/rust_bitcoincore_rpc_test
+TESTDIR=/tmp/rust_kaon_rpc_test
 
 rm -rf ${TESTDIR}
 mkdir -p ${TESTDIR}/1 ${TESTDIR}/2
 
-# To kill any remaining open bitcoind.
-killall -9 bitcoind
+# To kill any remaining open kaond.
+killall -9 kaond
 
-bitcoind -regtest \
+kaond -regtest \
     -datadir=${TESTDIR}/1 \
-    -port=12348 \
+    -port=5778 \
     -server=0 \
     -printtoconsole=0 &
 PID1=$!
@@ -19,19 +19,19 @@ PID1=$!
 sleep 3
 
 BLOCKFILTERARG=""
-if bitcoind -version | grep -q "v0\.\(19\|2\)"; then
+if kaond -version | grep -q "v0\.\(19\|2\)"; then
     BLOCKFILTERARG="-blockfilterindex=1"
 fi
 
 FALLBACKFEEARG=""
-if bitcoind -version | grep -q "v0\.2"; then
+if kaond -version | grep -q "v0\.2"; then
     FALLBACKFEEARG="-fallbackfee=0.00001000"
 fi
 
-bitcoind -regtest $BLOCKFILTERARG $FALLBACKFEEARG \
+kaond -regtest $BLOCKFILTERARG $FALLBACKFEEARG \
     -datadir=${TESTDIR}/2 \
-    -connect=127.0.0.1:12348 \
-    -rpcport=12349 \
+    -connect=127.0.0.1:5778 \
+    -rpcport=51474 \
     -server=1 \
     -txindex=1 \
     -printtoconsole=0 \
@@ -42,7 +42,7 @@ PID2=$!
 # Let it connect to the other node.
 sleep 5
 
-RPC_URL=http://localhost:12349 \
+RPC_URL=http://localhost:51474 \
     RPC_COOKIE=${TESTDIR}/2/regtest/.cookie \
     TESTDIR=${TESTDIR} \
     cargo run
